@@ -1,0 +1,27 @@
+# Firebase CLI
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc.local
+ui-debug.log
+firestore-debug.log
+pubsub-debug.log
+
+# Node (only relevant if you ever add build tooling)
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Environment / secrets
+.env
+.env.local
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local test files
+/tmp/
