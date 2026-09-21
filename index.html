@@ -1043,10 +1043,26 @@ function renderCharacterRows(){
   wrap.innerHTML=teacherCharacters.map((c,i)=>`
     <div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start">
       <div style="flex:1">
-        <input class="input" placeholder="Character name" value="${esc(c.name)}" oninput="teacherCharacters[${i}].name=this.value">
-        <input class="input" placeholder="I am… (clue)" value="${esc(c.clue)}" style="margin-top:6px" oninput="teacherCharacters[${i}].clue=this.value">
+        <input class="input char-name" data-i="${i}" placeholder="Character name" value="${esc(c.name)}">
+        <input class="input char-clue" data-i="${i}" placeholder="I am… (clue)" style="margin-top:6px" value="${esc(c.clue)}">
       </div>${teacherCharacters.length>1?`<button type="button" class="btn secondary" style="padding:8px 12px" onclick="removeCharacterRow(${i})">Remove</button>`:''}
     </div>`).join('');
+  wrap.querySelectorAll('.char-name').forEach(el=>el.addEventListener('input', e=>{
+    const i = Number(e.target.dataset.i);
+    if(teacherCharacters[i]){ teacherCharacters[i].name = e.target.value; renderCharacterSummary(); }
+  }));
+  wrap.querySelectorAll('.char-clue').forEach(el=>el.addEventListener('input', e=>{
+    const i = Number(e.target.dataset.i);
+    if(teacherCharacters[i]){ teacherCharacters[i].clue = e.target.value; renderCharacterSummary(); }
+  }));
+  renderCharacterSummary();
+}
+function renderCharacterSummary(){
+  const el = document.getElementById('charSummary'); if(!el) return;
+  const filled = teacherCharacters.filter(c=>(c.name||'').trim());
+  el.textContent = filled.length
+    ? 'Ready to save: ' + filled.map(c=>c.name.trim()).join(', ')
+    : 'No named characters yet — type a name above and it will appear here.';
 }
 function addCharacterRow(){ teacherCharacters.push({name:'',clue:''}); renderCharacterRows(); }
 function removeCharacterRow(i){ teacherCharacters.splice(i,1); if(!teacherCharacters.length) teacherCharacters=[{name:'',clue:''}]; renderCharacterRows(); }
@@ -1187,6 +1203,7 @@ function teacherEditor(){
   <label class="field">Confession — one statement per line</label><textarea class="input" id="tfConfession" rows="3">${esc((editing?.confession||[]).join('\n'))}</textarea>
   <label class="field">Vocabulary for games — comma separated</label><input class="input" id="tfVocab" value="${esc((editing?.vocabulary||[]).join(', '))}">
   <label class="field">Characters for “Who am I?”</label><div id="tfCharacters"></div>
+  <p id="charSummary" class="muted" style="margin:4px 0 10px"></p>
   <button type="button" class="btn secondary" onclick="addCharacterRow()">Add character</button>
   <label class="field">Status</label><select class="input" id="tfStatus">${['Draft','Review','Published'].map(s=>`<option ${status===s?'selected':''}>${s}</option>`).join('')}</select>
   <div class="toolbar">
@@ -1226,10 +1243,14 @@ async function changePassword(){
   }catch(e){ msg.textContent='Could not update the password — check the current password and try again.'; }
 }
 async function seedStarterLessons(){
-  if(!confirm('Load the four starter lessons into this app?')) return;
+  const msg = STATE.lessons.length
+    ? 'You already have '+STATE.lessons.length+' lesson(s). Load the 4 starter lessons anyway? (This adds them alongside your existing lessons — it won\'t replace or remove anything.)'
+    : 'Load the four starter lessons into this app?';
+  if(!confirm(msg)) return;
   const starters = starterLessons();
+  const maxSeq = STATE.lessons.reduce((m,l)=>Math.max(m, l.seq||0), 0);
   try{
-    for(const l of starters){ await addDoc(collection(db,'lessons'), l); }
+    for(const l of starters){ await addDoc(collection(db,'lessons'), {...l, seq: maxSeq + l.seq, createdAt: serverTimestamp()}); }
     alert('Starter lessons added.');
   }catch(e){ alert('Could not add starter lessons. Check the connection and try again.'); }
 }
@@ -1261,7 +1282,11 @@ function renderTeacher(){
     </div>${!STATE.lessons.length?`<div class="banner warn" style="margin-top:18px">No lessons yet. <button class="btn gold" style="margin-left:8px" onclick="seedStarterLessons()">Load the 4 starter lessons</button></div>`:''}`;
   if(teacherSection==='lessons') body=`
     ${flashMessage?`<div class="banner ok">${esc(flashMessage)}</div>`:''}
-    <div class="section-head"><div><h1>Lessons</h1><p class="muted">Manage the weekly teaching content.</p></div><button class="btn" onclick="teacherEdit(null)">New lesson</button></div>
+    <div class="section-head"><div><h1>Lessons</h1><p class="muted">Manage the weekly teaching content.</p></div>
+      <div class="toolbar" style="margin:0">
+        <button class="btn secondary" onclick="seedStarterLessons()">Load the 4 starter lessons</button>
+        <button class="btn" onclick="teacherEdit(null)">New lesson</button>
+      </div></div>
     <div class="card"><div class="table-scroll"><table><tr><th>Picture</th><th>Date</th><th>Topic</th><th>Story</th><th>Status</th><th></th></tr>${teacherLessonRows()}</table></div></div>`;
   if(teacherSection==='editor') body=teacherEditor();
   if(teacherSection==='class') body=`
